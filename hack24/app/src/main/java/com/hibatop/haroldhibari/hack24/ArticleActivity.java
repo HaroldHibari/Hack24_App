@@ -1,0 +1,92 @@
+package com.hibatop.haroldhibari.hack24;
+
+
+        import android.content.Intent;
+import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
+import android.util.Log;
+import android.view.View;
+import android.widget.Toast;
+
+import com.pusher.client.Pusher;
+import com.pusher.client.channel.Channel;
+import com.pusher.client.channel.SubscriptionEventListener;
+
+import java.util.ArrayList;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
+public class ArticleActivity extends AppCompatActivity implements Callback<Articles> {
+
+    private RecyclerView mRecyclerView;
+    private ArticleAdapter mAdapter;
+    private ArrayList<Article> mArticles;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_article_coord);
+
+        mRecyclerView = (RecyclerView)findViewById(R.id.rv);
+        LinearLayoutManager llm = new LinearLayoutManager(ArticleActivity.this);
+        mRecyclerView.setLayoutManager(llm);
+        setupPusher();
+
+        mArticles = new ArrayList<Article>();
+        mAdapter = new ArticleAdapter(mArticles,this.getBaseContext());
+        mRecyclerView.setAdapter(mAdapter);
+
+        getArticles();
+    }
+
+    private void getArticles() {
+
+        Log.d("GB","trying to get articles");
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://46.101.2.116:3000/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        ArticleService service = retrofit.create(ArticleService.class);
+        Call<Articles> call = service.getArticles();
+        call.enqueue(this);
+    }
+
+    private void setupPusher(){
+        Pusher pusher = new Pusher("740d0f36323febd6a8c3");
+
+        Channel channel = pusher.subscribe("article");
+
+        channel.bind("new_article", new SubscriptionEventListener() {
+            @Override
+            public void onEvent(String channelName, String eventName, final String data) {
+                getArticles();
+            }
+        });
+
+        pusher.connect();
+    }
+
+    @Override
+    public void onResponse(Call<Articles> call, Response<Articles> response) {
+
+        Articles articles = response.body();
+
+        mAdapter = new ArticleAdapter(articles.getArticles(),this.getBaseContext());
+        mRecyclerView.setAdapter(mAdapter);
+    }
+
+    @Override
+    public void onFailure(Call<Articles> call, Throwable t) {
+        Toast.makeText(this, "Fail!", Toast.LENGTH_SHORT);
+    }
+}
